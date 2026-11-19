@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>X و O</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lalezar&family=Cairo:wght@500;700&display=swap">
+<style>
+:root{
+  --bg:#e8edf8; --ink:#1d2b4f; --panel:#ffffff; --line:#b9c5e2;
+  --x:#d9840b; --o:#0f9b8e; --win:#fff1cc; --muted:#5a6788;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111833; --ink:#eef1fb; --panel:#1b2548; --line:#3a4778;
+    --x:#f2b134; --o:#3ec6b6; --win:#3a3a2a; --muted:#9aa6cc; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111833; --ink:#eef1fb; --panel:#1b2548; --line:#3a4778;
+  --x:#f2b134; --o:#3ec6b6; --win:#3a3a2a; --muted:#9aa6cc; color-scheme:dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{
+  margin:0; min-height:100vh; background:var(--bg); color:var(--ink);
+  font-family:"Cairo",system-ui,"Segoe UI",Tahoma,sans-serif;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:18px; padding:16px;
+}
+h1{font-family:"Lalezar","Cairo",sans-serif; font-weight:400; font-size:44px; margin:0; letter-spacing:1px}
+.score{display:flex; gap:12px; width:min(92vw,420px)}
+.score div{
+  flex:1; background:var(--panel); border:3px solid var(--line); border-radius:16px;
+  padding:8px 12px; text-align:center; transition:border-color .2s;
+}
+.score div.on{border-color:currentColor}
+.score .sx{color:var(--x)} .score .so{color:var(--o)}
+.score b{font-family:"Lalezar",sans-serif; font-weight:400; font-size:30px; display:block; line-height:1.1}
+.score span{font-size:14px; color:var(--muted)}
+#status{font-size:22px; font-weight:700; min-height:34px; text-align:center}
+#board{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:10px;
+  width:min(92vw,420px); aspect-ratio:1;
+}
+.cell{
+  background:var(--panel); border:3px solid var(--line); border-radius:18px;
+  font-family:"Lalezar",sans-serif; font-size:clamp(56px,20vw,96px); line-height:1;
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+  color:var(--ink); padding:0;
+}
+.cell:focus-visible,button:focus-visible{outline:3px solid var(--ink); outline-offset:3px}
+.cell.x{color:var(--x)} .cell.o{color:var(--o)}
+.cell.win{background:var(--win); border-color:currentColor}
+.cell.pop{animation:pop .18s ease-out}
+@keyframes pop{from{transform:scale(.6)}to{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.cell.pop{animation:none}}
+.row{display:flex; gap:10px}
+button.act{
+  font-family:inherit; font-size:18px; font-weight:700; color:var(--ink);
+  background:var(--panel); border:3px solid var(--line); border-radius:14px;
+  padding:10px 22px; cursor:pointer;
+}
+button.act:active{transform:scale(.97)}
+.panel{display:flex;flex-direction:column;gap:10px;width:min(92vw,420px)}
+.panel button.act{width:100%}
+.hide{display:none!important}
+input{font:inherit;font-size:22px;text-align:center;letter-spacing:6px;text-transform:uppercase;color:var(--ink);background:var(--panel);border:3px solid var(--line);border-radius:14px;padding:10px;width:100%}
+.note{font-size:14px;color:var(--muted);text-align:center;margin:0}
+#code{font-family:"Lalezar",sans-serif;font-size:40px;letter-spacing:8px;direction:ltr}
+.chat{width:min(92vw,420px)}
+#msgs{height:130px;overflow:auto;background:var(--panel);border:3px solid var(--line);border-radius:14px;padding:8px 10px;font-size:15px;margin-bottom:8px;overflow-wrap:anywhere}
+#msgs b.x{color:var(--x)} #msgs b.o{color:var(--o)}
+#msgIn{letter-spacing:0;text-transform:none;font-size:16px;text-align:start}
+</style>
+</head>
+<body>
+<h1>X و O</h1>
+<div class="panel" id="menu">
+  <button class="act" id="bQuick">لاعب عشوائي</button>
+  <button class="act" id="bCreate">سوّي غرفة (كود لصديقك)</button>
+  <div class="row"><input id="inCode" maxlength="4" placeholder="الكود" aria-label="كود الغرفة" dir="ltr"><button class="act" id="bJoin">ادخل</button></div>
+  <button class="act" id="bLocal">نفس الموبايل</button>
+  <p class="note" id="menuNote"></p>
+</div>
+<div id="game" class="hide" style="display:flex;flex-direction:column;align-items:center;gap:14px">
+  <div id="codeBox" class="hide" style="text-align:center"><span class="note">كود الغرفة، ارسله لصديقك</span><div id="code"></div></div>
+  <div class="score">
+    <div class="sx" id="sx"><span id="lx">لاعب X</span><b id="nx">0</b></div>
+    <div class="so" id="so"><span id="lo">لاعب O</span><b id="no">0</b></div>
+  </div>
+  <div id="status" aria-live="polite"></div>
+  <div id="board" role="grid" aria-label="لوحة اللعب"></div>
+  <div class="row"><button class="act" id="again">جولة جديدة</button><button class="act" id="leave">طلوع</button></div>
+  <div id="extras" class="hide" style="display:flex;flex-direction:column;align-items:center;gap:10px;width:100%">
+    <button class="act" id="mic" style="width:min(92vw,420px)">🎤 شغّل الصوت</button>
+    <p class="note" id="micNote"></p>
+    <audio id="remote" autoplay playsinline></audio>
+    <div class="chat"><div id="msgs"></div><div class="row"><input id="msgIn" maxlength="200" placeholder="اكتب رسالة" aria-label="رسالة"><button class="act" id="send">ارسل</button></div></div>
+  </div>
+</div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, runTransaction, collection, addDoc, query, orderBy, limit, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDviDgDkX5V1QlxhgYnV5KHnV_Q5aOyHlg",
+  authDomain: "xo-friends-play.firebaseapp.com",
+  projectId: "xo-friends-play",
+  storageBucket: "xo-friends-play.firebasestorage.app",
+  messagingSenderId: "429857295145",
+  appId: "1:429857295145:web:5a495f368cbf3ef82b8538"
+};
+const db = getFirestore(initializeApp(firebaseConfig));
+
+const $ = i => document.getElementById(i);
+const LINES=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+const EMPTY='.........';
+const lobbyRef = doc(db,'lobby','waiting');
+let uid; try{uid=localStorage.getItem('xo_uid');if(!uid){uid=Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem('xo_uid',uid)}}catch(e){uid=Math.random().toString(36).slice(2)+Date.now().toString(36)}
+let mode=null, me=null, ref=null, unsub=null, cur=null, quickWait=false, curCode=null, unsubChat=null;
+const cells=[];
+for(let i=0;i<9;i++){
+  const c=document.createElement('button'); c.className='cell'; c.setAttribute('aria-label','خانة '+(i+1));
+  c.addEventListener('click',()=>move(i)); $('board').appendChild(c); cells.push(c);
+}
+const note=t=>{$('menuNote').textContent=t||''};
+function winLine(b){for(const l of LINES){if(b[l[0]]!=='.'&&b[l[0]]===b[l[1]]&&b[l[0]]===b[l[2]])return l}return null}
+function newCode(){const a='ABCDEFGHJKMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<4;i++)s+=a[Math.floor(Math.random()*a.length)];return s}
+const fresh=extra=>Object.assign({x:'',o:'',b:EMPTY,t:'X',s:'play',w:'',sx:0,so:0,ts:Date.now()},extra);
+
+function render(d){
+  cur=d; const w=d.s==='done'&&d.w!=='D'?winLine(d.b):null;
+  for(let i=0;i<9;i++){
+    const ch=d.b[i]==='.'?'':d.b[i], c=cells[i], was=c.textContent;
+    c.textContent=ch;
+    c.className='cell'+(ch?' '+ch.toLowerCase():'')+(ch&&was!==ch?' pop':'')+(w&&w.includes(i)?' win':'');
+    c.disabled=!!ch||d.s!=='play'||(mode==='online'&&d.t!==me);
+  }
+  $('nx').textContent=d.sx; $('no').textContent=d.so;
+  $('lx').textContent=mode==='online'&&me==='X'?'أنت (X)':'لاعب X';
+  $('lo').textContent=mode==='online'&&me==='O'?'أنت (O)':'لاعب O';
+  $('sx').classList.toggle('on',d.s==='play'&&d.t==='X'); $('so').classList.toggle('on',d.s==='play'&&d.t==='O');
+  let st;
+  if(d.s==='wait')st='بانتظار اللاعب الثاني…';
+  else if(d.s==='done')st=d.w==='D'?'تعادل 🤝':(mode==='online'?(d.w===me?'فزت! 🎉':'خسرت، عوّضها بالجاية'):'فاز '+d.w+'! 🎉');
+  else st=mode==='online'?(d.t===me?'دورك ('+me+')':'دور الخصم…'):'دور '+d.t;
+  $('status').textContent=st;
+  $('codeBox').classList.toggle('hide',!(mode==='online'&&d.s==='wait'));
+  $('again').classList.toggle('hide',d.s!=='done');
+  $('extras').style.display=mode==='online'?'flex':'none';
+}
+function move(i){
+  const d=cur; if(!d||d.s!=='play'||d.b[i]!=='.')return;
+  if(mode==='online'&&d.t!==me)return;
+  const b=d.b.substring(0,i)+d.t+d.b.substring(i+1), p={b};
+  if(winLine(b)){p.s='done';p.w=d.t;if(d.t==='X')p.sx=d.sx+1;else p.so=d.so+1}
+  else if(!b.includes('.')){p.s='done';p.w='D'}
+  else p.t=d.t==='X'?'O':'X';
+  commit(d,p);
+}
+function commit(d,p){
+  if(mode==='local')render(Object.assign({},d,p));
+  else if(ref)updateDoc(ref,p).catch(()=>{$('status').textContent='صار خطأ بالاتصال، جرّب مرة ثانية'});
+}
+$('again').addEventListener('click',()=>{
+  const d=cur; if(!d)return;
+  commit(d,{b:EMPTY,t:d.w==='X'?'O':'X',s:'play',w:''});
+});
+
+function showGame(on){$('menu').classList.toggle('hide',on);$('game').classList.toggle('hide',!on);$('game').style.display=on?'flex':'none'}
+function stop(){
+  stopVoice(); if(unsubChat){unsubChat();unsubChat=null}
+  if(unsub){unsub();unsub=null}
+  if(quickWait){quickWait=false;getDoc(lobbyRef).then(s=>{if(s.exists()&&s.data().uid===uid)deleteDoc(lobbyRef)}).catch(()=>{})}
+  ref=null;cur=null;me=null;mode=null;curCode=null;
+}
+$('leave').addEventListener('click',()=>{stop();showGame(false);note('')});
+$('bLocal').addEventListener('click',()=>{stop();mode='local';showGame(true);render(fresh({}))});
+
+function watch(code,mark){
+  mode='online';me=mark;curCode=code;ref=doc(db,'games',code);startChat(code);$('code').textContent=code;showGame(true);
+  unsub=onSnapshot(ref,s=>{if(s.exists())render(s.data())},()=>{$('status').textContent='انقطع الاتصال'});
+}
+async function create(){
+  const code=newCode();
+  await setDoc(doc(db,'games',code),fresh({x:uid,s:'wait'}));
+  watch(code,'X'); return code;
+}
+async function join(code){
+  const r=doc(db,'games',code);
+  const res=await runTransaction(db,async tx=>{
+    const s=await tx.get(r); if(!s.exists())return 'none';
+    const d=s.data(); if(d.x===uid)return 'X'; if(d.o===uid)return 'O'; if(d.o)return 'full';
+    tx.update(r,{o:uid,s:'play'}); return 'O';
+  });
+  if(res==='none'){note('الكود غلط أو الغرفة انتهت');return false}
+  if(res==='full'){note('الغرفة ممتلية');return false}
+  watch(code,res); return true;
+}
+$('bCreate').addEventListener('click',async()=>{
+  note('');stop();
+  try{await create()}catch(e){note('ما قدرت أسوي الغرفة، تأكد من الإنترنت وقواعد Firestore')}
+});
+$('bJoin').addEventListener('click',async()=>{
+  const code=$('inCode').value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(code.length!==4){note('اكتب كود من 4 خانات');return}
+  note('');stop();
+  try{await join(code)}catch(e){note('ما قدرت أدخل الغرفة')}
+});
+$('bQuick').addEventListener('click',async()=>{
+  note('');stop();
+  try{
+    const code=await runTransaction(db,async tx=>{
+      const s=await tx.get(lobbyRef);
+      if(s.exists()){const d=s.data();if(d.uid!==uid&&Date.now()-d.ts<60000){tx.delete(lobbyRef);return d.code}}
+      return null;
+    });
+    if(code&&await join(code))return;
+    const mine=await create();
+    await setDoc(lobbyRef,{uid:uid,code:mine,ts:Date.now()});
+    quickWait=true;
+  }catch(e){note('ما قدرت ألقى لاعب، جرّب مرة ثانية')}
+});
+
+// ---------- chat ----------
+function startChat(code){
+  $('msgs').textContent='';
+  const q=query(collection(db,'games',code,'chat'),orderBy('ts'),limit(50));
+  unsubChat=onSnapshot(q,snap=>{
+    const box=$('msgs'); box.textContent='';
+    snap.forEach(d=>{
+      const m=d.data(), p=document.createElement('div'), b=document.createElement('b');
+      b.textContent=(m.u||'?')+': '; b.className=String(m.u||'').toLowerCase();
+      p.appendChild(b); p.appendChild(document.createTextNode(String(m.m||'')));
+      box.appendChild(p);
+    });
+    box.scrollTop=box.scrollHeight;
+  },()=>{});
+}
+function sendMsg(){
+  const t=$('msgIn').value.trim(); if(!t||!curCode)return;
+  $('msgIn').value='';
+  addDoc(collection(db,'games',curCode,'chat'),{u:me,m:t.slice(0,200),ts:Date.now()}).catch(()=>{});
+}
+$('send').addEventListener('click',sendMsg);
+$('msgIn').addEventListener('keydown',e=>{if(e.key==='Enter')sendMsg()});
+
+// ---------- live voice (WebRTC, signaling through Firestore) ----------
+const ICE={iceServers:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}]};
+let pc=null, stream=null, unsubRtc=[], micOn=false, pending=[], offerT=0;
+const rtc=n=>doc(db,'games',curCode,'rtc',n);
+const micNote=t=>{$('micNote').textContent=t||''};
+function flush(){const a=pending;pending=[];a.forEach(f=>f())}
+async function startVoice(){
+  if(micOn||!curCode)return;
+  micNote('');
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:true})}
+  catch(e){micNote('لازم تسمح للمايك حتى يشتغل الصوت');return}
+  micOn=true; $('mic').textContent='🔇 طفّي الصوت';
+  const mine=me==='X'?'x':'o', theirs=me==='X'?'o':'x';
+  const code=curCode;
+  deleteDoc(rtc(me==='X'?'offer':'answer')).catch(()=>{});
+  deleteDoc(rtc('ice_'+mine)).catch(()=>{});
+  pc=new RTCPeerConnection(ICE);
+  stream.getTracks().forEach(t=>pc.addTrack(t,stream));
+  pc.ontrack=e=>{$('remote').srcObject=e.streams[0]; $('remote').play().catch(()=>{})};
+  pc.onconnectionstatechange=()=>{
+    if(!pc)return; const st=pc.connectionState;
+    micNote(st==='connected'?'الصوت شغال 🎧':st==='failed'?'الصوت ما اشتغل، غالباً شبكتكم تمنع الاتصال المباشر':'جاري ربط الصوت… (لازم صديقك يشغّل الصوت بعد)');
+  };
+  pc.onicecandidate=e=>{
+    if(e.candidate)setDoc(doc(db,'games',code,'rtc','ice_'+mine),{c:arrayUnion(JSON.stringify(e.candidate))},{merge:true}).catch(()=>{});
+  };
+  const seen=new Set();
+  unsubRtc.push(onSnapshot(rtc('ice_'+theirs),s=>{
+    if(!s.exists()||!pc)return;
+    (s.data().c||[]).forEach(j=>{
+      if(seen.has(j))return; seen.add(j);
+      const add=()=>{if(pc)pc.addIceCandidate(JSON.parse(j)).catch(()=>{})};
+      if(pc.remoteDescription)add(); else pending.push(add);
+    });
+  },()=>{}));
+  try{
+    if(me==='X'){
+      offerT=Date.now();
+      const off=await pc.createOffer(); await pc.setLocalDescription(off);
+      await setDoc(rtc('offer'),{sdp:off.sdp,type:off.type,t:offerT});
+      unsubRtc.push(onSnapshot(rtc('answer'),async s=>{
+        if(!s.exists()||!pc||pc.remoteDescription)return;
+        const d=s.data(); if(d.t<offerT)return;
+        await pc.setRemoteDescription({type:d.type,sdp:d.sdp}); flush();
+      },()=>{}));
+    }else{
+      unsubRtc.push(onSnapshot(rtc('offer'),async s=>{
+        if(!s.exists()||!pc||pc.remoteDescription)return;
+        const d=s.data();
+        await pc.setRemoteDescription({type:d.type,sdp:d.sdp}); flush();
+        const ans=await pc.createAnswer(); await pc.setLocalDescription(ans);
+        await setDoc(rtc('answer'),{sdp:ans.sdp,type:ans.type,t:Date.now()});
+      },()=>{}));
+    }
+  }catch(e){micNote('صار خطأ بتشغيل الصوت'); stopVoice()}
+}
+function stopVoice(){
+  const code=curCode, mine=me==='X'?'x':'o';
+  unsubRtc.forEach(u=>u()); unsubRtc=[]; pending=[];
+  if(pc){pc.close();pc=null}
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  $('remote').srcObject=null;
+  if(micOn&&code){
+    deleteDoc(doc(db,'games',code,'rtc',me==='X'?'offer':'answer')).catch(()=>{});
+    deleteDoc(doc(db,'games',code,'rtc','ice_'+mine)).catch(()=>{});
+  }
+  micOn=false; $('mic').textContent='🎤 شغّل الصوت'; micNote('');
+}
+$('mic').addEventListener('click',()=>{micOn?stopVoice():startVoice()});
+['bQuick','bCreate','bJoin'].forEach(i=>{$(i).disabled=false});
+</script>
+</body>
+</html>
